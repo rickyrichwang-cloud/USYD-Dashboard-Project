@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Employee Health Dashboard</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #e8f9f0;
+            display: flex;
+            justify-content: center; 
+            align-items: center;     
+            height: 100vh;
+        }
+
+        .dashboard-container {
+            width: 1200px;
+            height: 800px;
+            background-color: #e6f4ea;
+            position: relative;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            overflow: hidden;
+            padding-top: 20px;
+        }
+
+        .top-left-title {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: #0b1d51;
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        .institution {
+            position: absolute;
+            top: 30px; 
+            left: 10px;
+            color: #333333;
+            font-size: 13px;
+        }
+
+        .employee-name {
+            text-align: center;
+            font-size: 22px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .employee-info {   
+            display: flex;
+            justify-content: space-between;
+            width: 30%;
+            margin: 0 auto;
+            font-size: 15px;
+        }
+
+        .package, .checkup-id {
+            text-align: center;
+            flex: 1;
+        }
+
+        .highlight {
+            color: #0b1d51;
+            text-decoration: underline;
+        }
+
+        .metrics-section {
+            width: 40%;
+            height: 160px;
+            margin: 30px;
+            border: 2px solid #ccc;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 40px;
+            position: relative;
+        }
+
+        .metric-circle {
+            width: 150px;
+            height: 150px;
+            border: 3px solid #0b1d51;
+            border-radius: 60%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+            color: #0b1d51;
+        }
+
+        .details-label {
+            position: absolute;
+            bottom: 5px;
+            right: 3px;
+            font-size: 8px;
+            color: #0b1d51;
+            display: flex;
+            align-items: center;
+        }
+
+        .details-label span {
+            margin-left: 5px;
+            font-weight: bold;
+        }
+
+        .blood-test {
+            position: relative;
+            height: 150px;
+            margin: 30px;
+            width: 40%;
+            border: 2px solid #ccc;
+            border-radius: 12px;
+            align-items: center;
+            padding: 0 40px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .blood-test-title {
+            position: absolute;
+            top: 10px;
+            left: 15px;
+            font-size: 15px;
+            font-weight: bold;
+            color: #0b1d51;
+        }
+
+        .divider {
+            width: 100%;
+            height: 1px;
+            background-color: #ccc;
+            margin: 25px auto 5px auto;
+        }
+
+        .blood-test-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: center;
+            font-size: 15px;
+            table-layout: fixed;
+            margin-top: 0;
+        }
+
+        .blood-test-td {
+            padding: 14px 0;
+            border: none; 
+            color: #0b1d51;
+            vertical-align: middle;
+        }
+
+        .health-check-column {
+            position: absolute;
+            top: 100px;
+            right: 90px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .health-item {
+            display: flex;
+            align-items: center;
+            gap: 15px; 
+        }
+
+        .circle-wrapper {
+            width: 150px;
+            height: 150px;
+            position: relative;
+        }
+
+        .circle-label {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: #0b1d51;
+            line-height: 1;
+        }
+
+        .progress-ring__circle {
+            transition: 0.35s stroke-dashoffset;
+            transform: rotate(-90deg);
+            transform-origin: 50% 50%;
+            stroke-linecap: round;
+        }
+
+        .progress-ring__circle-bg {
+            stroke-linecap: round;
+	    stroke: #ffffff;
+        }
+
+        .health-summary {
+            position: relative;
+            min-width: 240px;
+            padding: 16px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: #e6f4ea;
+            font-size: 12px;
+            color: #0b1d51;
+        }
+        
+        .health-summary .details-label {
+            position: absolute;
+            bottom: 3px;
+            right: 5px;
+            font-size: 8px;
+            display: flex;
+            align-items: center;
+        }
+
+        .health-summary .details-label span {
+            margin-left: 15px;
+            font-weight: bold;
+        }
+
+        /* === 3 charts bottom left === */
+        .bottom-left-charts {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            display: grid;
+    	    grid-template-columns: repeat(2, 300px);
+    	    grid-auto-rows: 150px;
+	    flex-wrap: wrap;
+            gap: 10px;
+            background: #e6f4ea;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .chart-container {
+            width: 180px;
+            height: 180px;
+        }
+
+	.bottom-left-charts .details-label {
+    		position: absolute;
+    		bottom: 5px;
+    		right: 5px;
+    		font-size: 8px;
+    		color: #0b1d51;
+    		display: flex;
+    		align-items: center;
+	}
+
+	.bottom-left-charts .details-label span {
+    		margin-left: 5px;
+    		font-weight: bold;
+	}
+
+
+	/* bottom-right scores */
+	.bottom-right-scores {
+		position: absolute;
+    		bottom: 100px;
+    		right: 300px;
+    		display: flex;
+    		gap: 30px;
+		background-color: #e6f4ea;
+	}
+
+	.score-box {
+		position: relative;
+		width: 180px;
+    		height: 100px;
+    		background-color: #e6f4ea;
+    		border: 2px solid #0b1d51;
+    		border-radius: 10px;
+    		display: flex;
+    		flex-direction: column;
+    		justify-content: center;
+    		align-items: center;
+    		box-shadow: 0 0 8px rgba(0,0,0,0.1);
+    		padding: 10px;
+	}
+
+	.score-number {
+		font-size: 32px;
+    		font-weight: bold;
+    		background: linear-gradient(90deg, #7CFC00, #32CD32, #00FF00);
+    		-webkit-background-clip: text;
+    		-webkit-text-fill-color: transparent;
+    		margin-bottom: 8px;
+	}
+
+	.score-label {
+ 		font-size: 12px;
+    		color: #0b1d51;
+    		text-align: center;
+	}
+
+
+	.score-box .details-label {
+		position: absolute;
+    		bottom: 5px;
+    		right: 5px;
+    		font-size: 8px;
+    		display: flex;
+    		align-items: center;
+    		color: #0b1d51;
+	}
+
+	.score-box .details-label span {
+    		margin-left: 5px;
+    		font-weight: bold;
+	}	
+
+    </style>
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <div class="top-left-title">Employee Health Dashboard</div>
+        <div class="institution">usyd Medical Institution</div>
+        <div class="employee-name">Rick W</div>
+
+        <div class="employee-info">    
+            <div class="package">
+                <span class="highlight">Standard</span> Package
+            </div>
+            <div class="checkup-id">Check-UP ID: 540796852</div>
+        </div>
+
+        <div class="metrics-section">
+            <div class="metric-circle metric-center">Height<br>200 cm</div>
+            <div class="metric-circle metric-center">Weight<br>60 kg</div>
+            <div class="metric-circle metric-center">Blood Pressure<br>120/80 mmHg</div>
+            <div class="details-label">ⓘ<span>Explanation</span></div>
+        </div>
+
+        <div class="blood-test">
+            <div class="blood-test-title">Blood Test</div>
+            <div class="divider"></div>
+            <div class="details-label">ⓘ<span>Full Details And Explanation</span></div>
+            <table class="blood-test-table">
+                <tr>
+                    <td><strong>Project</strong></td>
+                    <td><strong>Result</strong></td>
+                    <td><strong>Health Range</strong></td>
+                </tr>
+                <tr>
+                    <td>WBC</td>
+                    <td>6.2</td>
+                    <td>4.0 - 10.0</td>
+                </tr>
+                <tr>
+                    <td>RBC</td>
+                    <td>4.8</td>
+                    <td>4.0 - 5.5</td>
+                </tr>
+                <tr>    
+                    <td>Hb</td>
+                    <td>140</td>
+                    <td>120 - 160</td>
+                </tr>
+                <tr>
+                    <td>PLT</td>
+                    <td>250</td>
+                    <td>100 - 300</td>
+                </tr>
+            </table>
+        </div>
+
+        <!-- Health Check Column -->
+        <div class="health-check-column">
+            <div class="health-item" id="circle-liver">
+                <div class="circle-wrapper">
+                    <svg class="progress-ring" width="150" height="150">
+                        <circle class="progress-ring__circle-bg" stroke="#eee" stroke-width="13" fill="transparent" r="65" cx="75" cy="75"/>
+                        <circle class="progress-ring__circle" stroke="#0b1d51" stroke-width="13" fill="transparent" r="65" cx="75" cy="75"/>
+                    </svg>
+                    <div class="circle-label">Liver<br><span id="liver-score">80</span></div>
+                </div>
+                <div class="health-summary">
+                    <strong>Liver Status:</strong><br>Good function, slight elevation in ALT
+                    <div class="details-label">ⓘ<span>Full Details And Explanation</span></div>
+                </div>
+            </div>
+
+            <div class="health-item" id="circle-kidney">
+                <div class="circle-wrapper">
+                    <svg class="progress-ring" width="150" height="150">
+                        <circle class="progress-ring__circle-bg" stroke="#eee" stroke-width="13" fill="transparent" r="65" cx="75" cy="75"/>
+                        <circle class="progress-ring__circle" stroke="#0b1d51" stroke-width="13" fill="transparent" r="65" cx="75" cy="75"/>
+                    </svg>
+                    <div class="circle-label">Kidney<br><span id="kidney-score">75</span></div>
+                </div>
+                <div class="health-summary">
+                    <strong>Kidney Status:</strong><br>Normal creatinine and GFR
+                    <div class="details-label">ⓘ<span>Full Details And Explanation</span></div>
+                </div>
+            </div>
+
+            <div class="health-item" id="circle-urine">
+                <div class="circle-wrapper">
+                    <svg class="progress-ring" width="150" height="150">
+                        <circle class="progress-ring__circle-bg" stroke="#eee" stroke-width="13" fill="transparent" r="65" cx="75" cy="75"/>
+                        <circle class="progress-ring__circle" stroke="#0b1d51" stroke-width="13" fill="transparent" r="65" cx="75" cy="75"/>
+                    </svg>
+                    <div class="circle-label">Urine<br><span id="urine-score">90</span></div>
+                </div>
+                <div class="health-summary">
+                    <strong>Urine Status:</strong><br>Excellent
+                    <div class="details-label">ⓘ<span>Full Details And Explanation</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3 bar charts -->
+        <div class="bottom-left-charts">
+            <div class="chart-container"><canvas id="visionChart"></canvas></div>
+            <div class="chart-container"><canvas id="myopiaChart"></canvas></div>
+            <div class="chart-container"><canvas id="astigmatismChart"></canvas></div>
+	    <div class="details-label">ⓘ<span>Full Details And Explanation</span></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        function setProgress(circleId, percent) {
+            const circle = document.querySelector(`#${circleId} .progress-ring__circle`);
+            const radius = circle.r.baseVal.value;
+            const circumference = 2 * Math.PI * radius;
+            circle.style.strokeDasharray = `${circumference} ${circumference}`;
+            const offset = circumference - (percent / 100) * circumference;
+            circle.style.strokeDashoffset = offset;
+        }
+
+        window.onload = function() {
+            setProgress('circle-liver', 80);
+            setProgress('circle-kidney', 75);
+            setProgress('circle-urine', 90);
+        }
+
+        // Chart.js Data Labels Plugin
+       const dataLabelPlugin = {
+    		id: 'dataLabels',
+    		afterDatasetsDraw(chart) {
+        		const { ctx } = chart;
+        		chart.data.datasets.forEach((dataset, i) => {
+            			const meta = chart.getDatasetMeta(i);
+            			meta.data.forEach((bar, index) => {
+                			const value = dataset.data[index];
+                			ctx.save();
+                			ctx.font = '12px Arial';
+                			ctx.fillStyle = '#000';
+                			ctx.textAlign = 'center';
+                			ctx.fillText(value, bar.x, bar.y - 5);
+                			ctx.restore();
+            			});
+       			 });
+    		}
+	};
+
+        new Chart(document.getElementById('visionChart'), {
+    		type: 'bar',
+    		data: {
+        		labels: ['Left Eye', 'Right Eye'],
+        		datasets: [{ data: [1.0, 0.8], backgroundColor: ['#a8d5ba', '#3c8d55'] }]
+    		},
+    		options: {
+        		responsive: false,
+        		plugins: { legend: { display: false }, title: { display: true, text: 'Visual Acuity', font: { size: 14 } } },
+        		scales: { y: { beginAtZero: true, max: 1.5, title: { display: true, text: 'Visual Acuity' } } }
+    		},
+   		plugins: [dataLabelPlugin]
+	});
+
+        new Chart(document.getElementById('myopiaChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Left Eye', 'Right Eye'],
+                datasets: [{ data: [-2.5, -3.0], backgroundColor: ['#a8d5ba', '#3c8d55'] }]
+            },
+            options: {
+                responsive: false,
+                plugins: { legend: { display: false }, title: { display: true, text: 'Myopia (D)', font: { size: 14 } } },
+                scales: { y: { beginAtZero: false, suggestedMin: -5, suggestedMax: 0, title: { display: true, text: 'Astigmatism(D)' } } }
+            },
+            plugins: [dataLabelPlugin]
+        });
+
+        new Chart(document.getElementById('astigmatismChart'), {
+            type: 'bar',
+            data: {
+                labels: ['Left Eye', 'Right Eye'],
+                datasets: [{ data: [-1.0, -0.75], backgroundColor: ['#a8d5ba', '#3c8d55'] }]
+            },
+            options: {
+                responsive: false,
+                plugins: { legend: { display: false }, title: { display: true, text: 'Astigmatism (D)', font: { size: 14 } } },
+                scales: { y: { beginAtZero: false, suggestedMin: -2, suggestedMax: 0, title: { display: true, text: 'Astigmatism(D)' } } }
+            },
+            plugins: [dataLabelPlugin]
+        });
+    </script>
+
+	<div class="bottom-right-scores" >
+		<div class="score-box">
+			<div class="score-number">99</div>
+			<div class="score-label">Your health score for the 25-35 age group</div>
+			<div class="details-label">ⓘ<span>Full Details And Explanation</span></div>
+		</div>
+		<div class="score-box">
+			<div class="score-number">90</div>
+			<div class="score-label">Your health score within your company's industry</div>
+			<div class="details-label">ⓘ<span>Full Details And Explanation</span></div>
+		</div>
+	</div>
+</div>
+</body>
+</html>

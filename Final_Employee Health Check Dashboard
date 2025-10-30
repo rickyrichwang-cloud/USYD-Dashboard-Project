@@ -1,0 +1,825 @@
+###     QBUS5010_Group 61_Dashboard     ###
+
+import pandas as pd
+from dash import Dash, html, dcc
+from dash.dependencies import Input, Output
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+
+# employee data according to 2 group members' past experience, there is no safety and lawfully way to access particular employee's real health data by the group
+EMPLOYEE_DATA = {"Tom M": {"checkup_id": "540796852",
+                           "height": "176 cm",
+                           "weight": "63 kg",
+                           "blood_pressure": "Within 60-120mmHg Healthy Range",
+                           "wbc": "6.2", "rbc": "4.8", "hb": "140", "plt": "250",
+
+                           "eye_data": {"visual_acuity": [1.0, 0.8], "myopia": [-2.5, -3.0], "astigmatism": [-1.0, -0.75]},
+
+                           "liver_score": 80,
+                           "liver_status": "Good function, slight elevation in ALT",
+                           "kidney_score": 75,
+                           "kidney_status": "Outside eGFR Normal Range",
+                           "urine_score": 90,
+                           "urine_status": "Excellent",
+
+                           "health_score_age": 99, "health_score_industry": 90},
+
+                 "Jerry J": {"checkup_id": "541996786",
+                           "height": "190 cm",
+                           "weight": "90 kg",
+                           "blood_pressure": "Slightly higher above Healthy Range",
+                           "wbc": "8.3", "rbc": "4.0", "hb": "158", "plt": "195",
+
+                           "eye_data": {"visual_acuity": [0.8, 0.7], "myopia": [-2.0, -1.7], "astigmatism": [-0.5, -0.3]},
+
+                           "liver_score": 75,
+                           "liver_status": "Good function, elevation in AST",
+                           "kidney_score": 70,
+                           "kidney_status": "Need attention in BUN",
+                           "urine_score": 85,
+                           "urine_status": "Excellent",
+
+                           "health_score_age": 94, "health_score_industry": 86},}
+
+# the file contains 4 sheets with items explanation information
+file_path = "QBUS5010_DASHBOARD_GROUP_11_Items.xlsx"
+sheet_names = ["Standard Package", "White-Collar Healthy Package", "Stomach-Care Package", "Endocrine Package"]
+dfs = {sheet: pd.read_excel(file_path, sheet_name=sheet, header=0) for sheet in sheet_names}
+
+# initialise dash
+app = Dash(__name__, suppress_callback_exceptions=True)
+server = app.server
+
+
+# define parts and function #
+# bottom left eye test function
+def create_eye_charts(eye_data):
+    fig = make_subplots(rows=2, cols=2, specs=[[{}, {}], [{"colspan": 2}, None]],
+                        subplot_titles=("Visual Acuity", "Myopia (D)", "Astigmatism (D)"))
+
+    # Visual Acuity
+    fig.add_trace(go.Bar(x=['Left Eye', 'Right Eye'], y=eye_data["visual_acuity"],
+                         marker_color=['#a8d5ba', '#3c8d55'],
+                         text=eye_data["visual_acuity"], textposition='auto'), row=1, col=1)
+
+    # Myopia (D)
+    fig.add_trace(go.Bar(x=['Left Eye', 'Right Eye'], y=eye_data["myopia"],
+                         marker_color=['#a8d5ba', '#3c8d55'],
+                         text=eye_data["myopia"], textposition='auto'), row=1, col=2)
+
+    # Astigmatism (D)
+    fig.add_trace(go.Bar(x=['Left Eye', 'Right Eye'], y=eye_data["astigmatism"],
+                         marker_color=['#a8d5ba', '#3c8d55'],
+                         text=eye_data["astigmatism"], textposition='auto'), row=2, col=1)
+
+    fig.update_layout(height=300, width=420,
+                      plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', showlegend=False,
+                      margin=dict(l=10, r=10, t=40, b=10))
+
+    fig.update_yaxes(showgrid=True, gridcolor='lightgrey')
+    return fig
+
+
+# interactive half circle progress ring
+def create_interactive_gauge(value, title, organ_id):
+    fig = go.Figure(go.Indicator(mode="gauge+number", value=value,
+                                 title={'text': title, 'font': {'size': 14, 'color': '#0b1d51', 'family': 'Arial'}},
+                                 number={'font': {'size': 18, 'color': '#0b1d51'}},
+                                 gauge={'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "#0b1d51", 'tickmode': 'array', 'tickvals': [0, 65, 100]},
+                                        'bar': {'color': "#0b1d51", 'thickness': 0.7},
+                                        'bgcolor': "white", 'borderwidth': 2, 'bordercolor': "#0b1d51",
+                                        # 4 range numbers represent four colours
+                                        'steps': [{'range': [0, 40], 'color': '#ffcccc'},
+                                                  {'range': [40, 65], 'color': '#fff4cc'},
+                                                  {'range': [65, 80], 'color': '#ffffcc'},
+                                                  {'range': [80, 100], 'color': '#ccffcc'}],
+
+                                        'threshold': {'line': {'color': "red", 'width': 2}, 'thickness': 0.7, 'value': 65}}))
+
+    fig.update_layout(height=100, width=100,
+                      margin=dict(l=2, r=2, t=20, b=2),
+                      paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                      font={'color': "#0b1d51", 'family': "Arial"})
+    return fig
+
+# return the right color and information according to score
+def get_status_color_and_text(score):
+    if score <= 40:
+        return "#ff4444", "Urgent Medical Support"
+    elif score <= 65:
+        return "#ffcc00", "Caution and Treatment"
+    elif score <= 80:
+        return "#ffff99", "Attention"
+    else:
+        return "#44ff44", "Excellent"
+
+# adjust layout
+def create_organ_section(data):
+    return html.Div(style={"position": "absolute", "top": "100px", "right": "130px", "display": "flex", "flexDirection": "column", "gap": "15px"},
+                    # liver area
+                    children=[html.Div(style={"display": "flex", "flexDirection": "column", "gap": "8px"},
+                                       children=[html.Div(id='liver-status-box',
+                                                          style={"minWidth": "400px", "padding": "8px",
+                                                                 "border": "2px solid #ccc", "borderRadius": "6px",
+                                                                 "backgroundColor": "#e6f4ea", "fontSize": "11px",
+                                                                 "color": "#0b1d51", "textAlign": "center"},
+                                                          children=[html.Strong(f"Your Liver Score: {data['liver_score']}",style={"fontSize": "13px"}),
+                                                                    html.Br(),
+                                                                    html.Span(data['liver_status'], style={"fontSize": "10px"})]),
+                                                 # the liver ring, slider, and colour
+                                                 html.Div(style={"display": "flex", "alignItems": "center", "justifyContent": "center", "gap": "10px"},
+                                                          children=[html.Div([dcc.Graph(id='liver-gauge',
+                                                                                        figure=create_interactive_gauge(data['liver_score'], "Liver", "liver"),
+                                                                                        config={'displayModeBar': False},
+                                                                                        style={"marginBottom": "-5px"}),
+
+                                                                              dcc.Slider(id='liver-slider',   # slider
+                                                                                         min=0,max=100,
+                                                                                         step=1, value=data['liver_score'],
+                                                                                         marks={
+                                                                                             0: {'label': '0', 'style': {'fontSize': '9px'}},
+                                                                                             65: {'label': '65', 'style': {'fontSize': '9px', 'color': 'red'}},
+                                                                                             100: {'label': '100', 'style': {'fontSize': '9px'}}},
+                                                                                         tooltip={"placement": "bottom", "always_visible": False})], style={"width": "160px"}),
+
+                                                                    html.Div(id='liver-color-indicator',   # colour
+                                                                             style={"width": "140px", "height": "60px",
+                                                                                    "backgroundColor": get_status_color_and_text(data['liver_score'])[0],
+                                                                                    "border": "2px solid #0b1d51",
+                                                                                    "borderRadius": "6px",
+                                                                                    "display": "flex", "justifyContent": "center", "alignItems": "center", "textAlign": "center",
+                                                                                    "fontSize": "10px", "fontWeight": "bold", "color": "#0b1d51",
+                                                                                    "padding": "5px"},
+                                                                             children=get_status_color_and_text(data['liver_score'])[1]),
+
+                                                                    # link to the Explanation page
+                                                                    dcc.Link("ⓘ", href="/liver-explanation",
+                                                                             style={"fontSize": "14px", "color": "#0b1d51",
+                                                                                    "textDecoration": "none", "fontWeight": "bold"})])]),
+                              # kidney area
+                              html.Div(style={"display": "flex", "flexDirection": "column", "gap": "8px"},
+                                       children=[html.Div(
+                                           id='kidney-status-box',
+                                           style={"minWidth": "400px", "padding": "8px", "border": "2px solid #ccc", "borderRadius": "6px",
+                                                  "backgroundColor": "#e6f4ea", "fontSize": "11px",
+                                                  "color": "#0b1d51", "textAlign": "center"},
+                                           children=[html.Strong(f"Your Kidney Score: {data['kidney_score']}",
+                                                                 style={"fontSize": "13px"}),
+
+                                                     html.Br(),
+                                                     html.Span(data['kidney_status'], style={"fontSize": "10px"})]),
+                                           # the kidney ring, slider, and colour
+                                           html.Div(style={"display": "flex", "alignItems": "center", "justifyContent": "center", "gap": "10px"},
+                                                    children=[html.Div([
+                                                        dcc.Graph(
+                                                            id='kidney-gauge',
+                                                            figure=create_interactive_gauge(data['kidney_score'], "Kidney", "kidney"),
+                                                            config={'displayModeBar': False}, style={"marginBottom": "-5px"}),
+
+                                                        dcc.Slider(id='kidney-slider',
+                                                                   min=0, max=100, step=1,
+                                                                   value=data['kidney_score'],
+                                                                   marks={
+                                                                       0: {'label': '0', 'style': {'fontSize': '9px'}},
+                                                                       65: {'label': '65', 'style': {'fontSize': '9px', 'color': 'red'}},
+                                                                       100: {'label': '100', 'style': {'fontSize': '9px'}}},
+                                                                   tooltip={"placement": "bottom", "always_visible": False})], style={"width": "160px"}),
+
+                                                        html.Div(id='kidney-color-indicator',
+                                                                 style={"width": "140px", "height": "60px",
+                                                                        "backgroundColor": get_status_color_and_text(data['kidney_score'])[0],
+                                                                        "border": "2px solid #0b1d51", "borderRadius": "6px", "display": "flex",
+                                                                        "justifyContent": "center", "alignItems": "center", "textAlign": "center",
+                                                                        "fontSize": "10px", "fontWeight": "bold", "color": "#0b1d51",
+                                                                        "padding": "5px"},
+                                                                 children=get_status_color_and_text(data['kidney_score'])[1]),
+
+                                                        # link to the Explanation page
+                                                        dcc.Link("ⓘ", href="/kidney-explanation",
+                                                                 style={"fontSize": "14px", "color": "#0b1d51",
+                                                                        "textDecoration": "none", "fontWeight": "bold"})])]),
+
+                              #  urine area
+                              html.Div(style={"display": "flex", "flexDirection": "column", "gap": "8px"},
+                                       children=[html.Div(id='urine-status-box',
+                                                          style={"minWidth": "400px", "padding": "8px",
+                                                                 "border": "2px solid #ccc", "borderRadius": "6px",
+                                                                 "backgroundColor": "#e6f4ea", "fontSize": "11px",
+                                                                 "color": "#0b1d51", "textAlign": "center"},
+                                                          children=[
+                                                              html.Strong(f"Your Urine Score: {data['urine_score']}",
+                                                                          style={"fontSize": "12px"}),
+                                                              html.Br(),
+                                                              html.Span(data['urine_status'], style={"fontSize": "10px"})]),
+
+                                                 # the urine ring, slider, and colour
+                                                 html.Div(
+                                                     style={"display": "flex", "alignItems": "center", "justifyContent": "center", "gap": "10px"},
+                                                     children=[html.Div([
+                                                         dcc.Graph(id='urine-gauge',
+                                                                   figure=create_interactive_gauge(data['urine_score'], "Urine", "urine"),
+                                                                   config={'displayModeBar': False},
+                                                                   style={"marginBottom": "-5px"}),
+
+                                                         dcc.Slider(id='urine-slider',
+                                                                    min=0, max=100, step=1,
+                                                                    value=data['urine_score'],
+                                                                    marks={
+                                                                        0: {'label': '0', 'style': {'fontSize': '9px'}},
+                                                                        65: {'label': '65', 'style': {'fontSize': '9px', 'color': 'red'}},
+                                                                        100: {'label': '100', 'style': {'fontSize': '9px'}}},
+                                                                    tooltip={"placement": "bottom", "always_visible": False})],
+                                                         style={"width": "160px"}),
+
+                                                         html.Div(id='urine-color-indicator',
+                                                                  style={
+                                                                      "width": "140px", "height": "60px",
+                                                                      "backgroundColor": get_status_color_and_text(data['urine_score'])[0],
+                                                                      "border": "2px solid #0b1d51", "borderRadius": "6px",
+                                                                      "display": "flex", "justifyContent": "center", "alignItems": "center", "textAlign": "center",
+                                                                      "fontSize": "10px", "fontWeight": "bold", "color": "#0b1d51",
+                                                                      "padding": "5px"},
+                                                                  children=get_status_color_and_text(data['urine_score'])[1]),
+
+                                                         dcc.Link("ⓘ", href="/urine-explanation",
+                                                                  style={"fontSize": "14px", "color": "#0b1d51",
+                                                                         "textDecoration": "none", "fontWeight": "bold"})])])])
+
+
+# the main page function and layout
+def create_main_page(employee_name):
+    data = EMPLOYEE_DATA[employee_name]  # according to employee name to call back
+    return html.Div(style={"fontFamily": "Arial, sans-serif",
+                           "backgroundColor": "#e8f9f0",
+                           "height": "100vh",
+                           "display": "flex", "justifyContent": "center", "alignItems": "center", },
+                    children=[html.Div(style={
+                        "width": "1200px","height": "800px",
+                        "backgroundColor": "#e6f4ea",
+                        "position": "relative",
+                        "boxShadow": "0 0 20px rgba(0,0,0,0.2)",
+                        "overflow": "hidden",
+                        "paddingTop": "20px", "borderRadius": "6px", },
+
+                        children=[html.Div("Employee Health Dashboard",
+                                           style={"position": "absolute", "top": "10px", "left": "10px",
+                                                  "color": "#0b1d51", "fontSize": "15px", "fontWeight": "bold"}),
+                                  # html.Div("Medical Institution",
+                                  #          style={"position": "absolute", "top": "30px", "left": "10px",
+                                  #                 "color": "#333333", "fontSize": "13px"}),
+
+                                  # here create employee dropdown
+                                  html.Div(children=[html.Label("Employee",
+                                                                style={"fontWeight": "bold", "fontSize": "16px",
+                                                                       "color": "#0b1d51", "marginRight": "10px"}),
+                                                     dcc.Dropdown(id="employee-dropdown",
+                                                                  options=[{"label": "Tom M", "value": "Tom M"},
+                                                                           {"label": "Jerry J", "value": "Jerry J"}],
+                                                                  value=employee_name, clearable=False,
+                                                                  style={"width": "120px", "fontSize": "16px", "textAlign": "center",
+                                                                         "border": "2px solid #0b1d51", "borderRadius": "8px",
+                                                                         "backgroundColor": "#ffffff", "color": "#0b1d51",
+                                                                         "boxShadow": "0 0 5px rgba(0,0,0,0.1)"}),],
+                                           style={"position": "absolute", "top": "15px", "left": "50%",
+                                                  "transform": "translateX(-50%)", "display": "flex", "alignItems": "center",
+                                                  "gap": "8px"},),
+
+                                  # package and checkupID here
+                                  html.Div(children=[dcc.Link(html.Span([
+                                      html.Span("Standard", style={"textDecoration": "underline", "fontWeight": "bold"})," Package"],
+                                      style={"color": "#0b1d51", "fontSize": "15px"}), href="/standard-page"),
+                                      html.Span(f"Check-UP ID: {data['checkup_id']}",
+                                                style={"color": "#0b1d51", "fontSize": "15px", "fontWeight": "normal"}), ],
+                                      style={"position": "absolute", "top": "60px", "left": "50%",
+                                             "transform": "translateX(-50%)", "display": "flex",
+                                             "justifyContent": "space-between", "alignItems": "center", "width": "730px"}),
+
+                                  # height weight blood_pressure here
+                                  html.Div(style={"width": "480px", "height": "160px", "border": "2px solid #ccc",
+                                                  "borderRadius": "12px", "display": "flex", "justifyContent": "space-between",
+                                                  "alignItems": "center", "padding": "0 20px", "backgroundColor": "#e6f4ea",
+                                                  "position": "absolute", "top": "100px", "left": "30px"},
+                                           children=[html.Div(f"Height\n{data['height']}",
+                                                              style={"width": "130px", "height": "130px", "border": "3px solid #0b1d51",
+                                                                     "borderRadius": "50%", "display": "flex", "justifyContent": "center",
+                                                                     "alignItems": "center", "textAlign": "center", "fontSize": "16px",
+                                                                     "fontWeight": "bold", "color": "#0b1d51"}),
+                                                     html.Div(f"Weight\n{data['weight']}",
+                                                              style={"width": "130px", "height": "130px", "border": "3px solid #0b1d51",
+                                                                     "borderRadius": "50%", "display": "flex", "justifyContent": "center",
+                                                                     "alignItems": "center", "textAlign": "center", "fontSize": "16px",
+                                                                     "fontWeight": "bold", "color": "#0b1d51"}),
+                                                     html.Div(f"Blood Pressure\n{data['blood_pressure']}",
+                                                              style={"width": "130px", "height": "130px", "border": "3px solid #0b1d51",
+                                                                     "borderRadius": "50%", "display": "flex", "justifyContent": "center",
+                                                                     "alignItems": "center", "textAlign": "center", "fontSize": "13px",
+                                                                     "fontWeight": "bold", "color": "#0b1d51"}),]),
+
+                                  # blood test area
+                                  html.Div(style={"width": "500px", "border": "2px solid #ccc", "borderRadius": "12px",
+                                                  "padding": "10px", "backgroundColor": "#e6f4ea",
+                                                  "position": "absolute", "top": "280px", "left": "30px"},
+                                           children=[html.Div("Blood Test", style={"fontWeight": "bold", "fontSize": "14px",
+                                                                                   "color": "#0b1d51", "marginBottom": "6px"}),
+                                                     html.Div(style={"height": "1px", "backgroundColor": "#ccc", "marginBottom": "6px"}),
+                                                     html.Table(style={"width": "100%", "borderCollapse": "collapse", "textAlign": "center", "fontSize": "12px"},
+                                                                children=[html.Tr([html.Th("Project", style={"padding": "6px"}),
+                                                                                   html.Th("Result", style={"padding": "6px"}),
+                                                                                   html.Th("Health Range", style={"padding": "6px"})]),
+                                                                          html.Tr([html.Td("WBC", style={"padding": "6px"}),
+                                                                                   html.Td(data['wbc'], style={"padding": "6px"}),
+                                                                                   html.Td("4.0 - 10.0", style={"padding": "6px"})]),
+                                                                          html.Tr([html.Td("RBC", style={"padding": "6px"}),
+                                                                                   html.Td(data['rbc'], style={"padding": "6px"}),
+                                                                                   html.Td("4.0 - 5.5", style={"padding": "6px"})]),
+                                                                          html.Tr([html.Td("Hb", style={"padding": "6px"}),
+                                                                                   html.Td(data['hb'], style={"padding": "6px"}),
+                                                                                   html.Td("120 - 160", style={"padding": "6px"})]),
+                                                                          html.Tr([html.Td("PLT", style={"padding": "6px"}),
+                                                                                   html.Td(data['plt'], style={"padding": "6px"}),
+                                                                                   html.Td("100 - 300", style={"padding": "6px"})]),])]),
+
+                                  # eye area
+                                  html.Div(children=[dcc.Graph(id='eye-charts',
+                                                               figure=create_eye_charts(data['eye_data']),
+                                                               style={"width": "500px", "height": "330px", "backgroundColor": "#e6f4ea",
+                                                                      "borderRadius": "12px", "boxShadow": "0 4px 20px rgba(0,0,0,0.15)",
+                                                                      "padding": "10px"}),
+
+                                                     # link to Explanation page
+                                                     dcc.Link("ⓘ Explanation", href="/eye-explanation",
+                                                              style={"position": "absolute", "bottom": "10px", "right": "10px",
+                                                                     "fontSize": "10px", "color": "#0b1d51", "cursor": "pointer"})],
+                                           style={"width": "500px", "height": "330px", "position": "absolute",
+                                                  "left": "30px", "top": "490px"}),
+
+                                  # right side of the main page
+                                  create_organ_section(data),
+                                  # bottom right area, the 2 scores
+                                  html.Div(style={"position": "absolute", "bottom": "15px", "right": "125px", "display": "flex", "gap": "20px"},
+                                           children=[html.Div(style={"position": "relative", "width": "180px", "height": "90px",
+                                                                     "backgroundColor": "#e6f4ea",
+                                                                     "border": "2px solid #0b1d51", "borderRadius": "8px", "display": "flex",
+                                                                     "flexDirection": "column", "justifyContent": "center", "alignItems": "center",
+                                                                     "boxShadow": "0 0 8px rgba(0,0,0,0.1)", "padding": "8px"},
+
+                                                              children=[html.Div(str(data['health_score_age']),
+                                                                                 style={"fontSize": "28px", "fontWeight": "bold",
+                                                                                        "background": "linear-gradient(90deg, #7CFC00, #32CD32, #00FF00)",
+                                                                                        "-webkit-background-clip": "text",
+                                                                                        "-webkit-text-fill-color": "transparent",
+                                                                                        "marginBottom": "5px"}),
+                                                                        # link to Explanation page
+                                                                        html.Div("Your health score for the 25-35 age group",
+                                                                                 style={"fontSize": "10px", "color": "#0b1d51", "textAlign": "center"}),
+                                                                        dcc.Link("ⓘ Explanation", href="/health-explanation-1",
+                                                                                 style={"position": "absolute", "bottom": "3px", "right": "3px", "fontSize": "8px", "color": "#0b1d51"})]),
+
+                                                     html.Div(style={"position": "relative", "width": "180px", "height": "90px",
+                                                                     "backgroundColor": "#e6f4ea",
+                                                                     "border": "2px solid #0b1d51", "borderRadius": "8px", "display": "flex",
+                                                                     "flexDirection": "column", "justifyContent": "center", "alignItems": "center",
+                                                                     "boxShadow": "0 0 8px rgba(0,0,0,0.1)", "padding": "8px"},
+                                                              children=[html.Div(str(data['health_score_industry']),
+                                                                                 style={"fontSize": "28px", "fontWeight": "bold",
+                                                                                        "background": "linear-gradient(90deg, #7CFC00, #32CD32, #00FF00)",
+                                                                                        "-webkit-background-clip": "text",
+                                                                                        "-webkit-text-fill-color": "transparent",
+                                                                                        "marginBottom": "5px"}),
+
+                                                                        html.Div("Your health score within your company's industry",
+                                                                                 style={"fontSize": "10px", "color": "#0b1d51", "textAlign": "center"}),
+                                                                        dcc.Link("ⓘ Explanation", href="/health-explanation-2",
+                                                                                 style={"position": "absolute", "bottom": "3px", "right": "3px", "fontSize": "8px", "color": "#0b1d51"})])]),])])
+
+
+
+
+# majority for the Explanation pages of different parts
+# Eye explanation page
+eye_explanation_page = html.Div(style={"minHeight": "100vh", "backgroundColor": "#e8f9f0", "color": "#0b1d51", "padding": "50px"},
+                                children=[html.H2("Eye Examination", style={"color": "#0b1d51"}),
+                                          html.H4("Visual Acuity", style={"marginTop": "20px", "color": "#3c8d55"}),
+                                          html.P("Visual Acuity measures your eye's ability to see details clearly."),
+                                          html.Ul([html.Li("1.0 or higher = Normal/Excellent vision"),
+                                                   html.Li("0.8-1.0 = Good vision (may need mild correction)"),
+                                                   html.Li("0.5-0.8 = Moderate vision decline"),
+                                                   html.Li("Below 0.5 = Correction needed")], style={"lineHeight": "1.8"}),
+
+                                          html.H4("Myopia (Nearsightedness)", style={"marginTop": "30px", "color": "#3c8d55"}),
+                                          html.P("Measures refractive error of the eye. With myopia, distant objects appear blurry. Measured in diopters (D) with negative values."),
+                                          html.Ul([html.Li("0 to -0.50 D: No myopia/Very mild"),
+                                                   html.Li("-0.50 to -1.50 D: Mild myopia (may not need glasses all the time)"),
+                                                   html.Li("-1.50 to -3.00 D: Mild to moderate myopia (glasses recommended)"),
+                                                   html.Li("-3.00 to -6.00 D: Moderate myopia (glasses needed)"),
+                                                   html.Li("Below -6.00 D: High myopia (requires special attention to eye health)")], style={"lineHeight": "1.8"}),
+
+                                          html.H4("Astigmatism", style={"marginTop": "30px", "color": "#3c8d55"}),
+                                          html.P("Measures irregular curvature of the cornea or lens of the eye."),
+                                          html.Ul([html.Li("0 to 0.25 D: Almost no astigmatism"),
+                                                   html.Li("0.25 to 0.50 D: Very mild, usually does not affect vision"),
+                                                   html.Li("0.50 to 1.00 D: Mild, may cause slight blurriness"),
+                                                   html.Li("1.00 to 2.00 D: Moderate, noticeably affects visual clarity"),
+                                                   html.Li("Above 2.00 D: High, severely affects vision")], style={"lineHeight": "1.8"}),
+
+                                          html.Br(),
+                                          dcc.Link("Back to Dashboard", href="/",
+                                                   style={"color": "#0b1d51", "textDecoration": "underline", "fontSize": "18px"})])
+
+# Health scores explanation pages
+health_explanation_1_page = html.Div(
+    style={"minHeight": "100vh", "backgroundColor": "#e8f9f0", "color": "#0b1d51", "padding": "50px"},
+    children=[
+        html.H2("Health Score Explanation (Age Group)", style={"color": "#0b1d51"}),
+        html.P("Your Standard Package check-up results have been analysed and compared them with all employees aged 25-35 in our database from the past year. Based on whether each indicator falls within the healthy range and the specific values, the system has calculated your health score within this age group."),
+        html.P("Total Health Scoreᵢ = Σ (wₖ × Sₖ,ᵢ)"),
+        html.P("The total health score for each employee i is calculated by multiplying their score on each health check-up indicator k (S_k,i) by the corresponding weight w_k, and then summing the weighted scores across all indicators among employees aged 25–35 in our database."),
+        html.Br(),
+        dcc.Link("Back to Dashboard", href="/",
+                 style={"color": "#0b1d51", "textDecoration": "underline", "fontSize": "18px"})])
+
+health_explanation_2_page = html.Div(
+    style={"minHeight": "100vh", "backgroundColor": "#e8f9f0", "color": "#0b1d51", "padding": "50px"},
+    children=[
+        html.H2("Health Score Explanation (Industry)", style={"color": "#0b1d51"}),
+        html.P("Your Standard Package check-up results have been analysed and compared them with all employees from companies in the same industry in our database from the past year. Based on whether each indicator falls within the healthy range and the specific values, the system has calculated your health score within this industry."),
+        html.P("Total Health Scoreᵢ = Σ (wₖ × Sₖ,ᵢ)"),
+        html.P("The total health score for each employee i is calculated by multiplying their score on each health check-up indicator k (S_k,i) by the corresponding weight w_k, and then summing the weighted scores across all indicators among employees who are in the same industry in our database."),
+        html.Br(),
+        dcc.Link("Back to Dashboard", href="/",
+                 style={"color": "#0b1d51", "textDecoration": "underline", "fontSize": "18px"})])
+
+# Liver explanation page
+liver_explanation_page = html.Div(
+    style={"minHeight": "100vh", "backgroundColor": "#e8f9f0", "color": "#0b1d51", "padding": "50px"},
+    children=[
+        html.H2("Liver Examination", style={"color": "#0b1d51"}),
+        html.P("Liver function tests evaluate the health and functionality of your liver through various indicators:"),
+        html.H4("1. ALT (Alanine Aminotransferase)", style={"marginTop": "20px", "color": "#3c8d55"}),
+        html.Ul([
+            html.Li("Healthy Range: 7-56 U/L"),
+            html.Li("Elevation indicates liver cell damage")], style={"lineHeight": "1.8"}),
+
+        html.H4("2. AST (Aspartate Aminotransferase)", style={"marginTop": "20px", "color": "#3c8d55"}),
+        html.Ul([
+            html.Li("Healthy Range: 10-40 U/L"),
+            html.Li("Detects liver and heart damage")], style={"lineHeight": "1.8"}),
+
+        html.H4("3. ALP (Alkaline Phosphatase)", style={"marginTop": "20px", "color": "#3c8d55"}),
+        html.Ul([
+            html.Li("Healthy Range: 44-147 U/L"),
+            html.Li("Detects biliary system function")], style={"lineHeight": "1.8"}),
+
+        html.H4("4. Total Bilirubin", style={"marginTop": "20px", "color": "#3c8d55"}),
+        html.Ul([
+            html.Li("Healthy Range: 0.1-1.2 mg/dL (or 3.4-20.5 μmol/L)"),
+            html.Li("Elevation may indicate jaundice")], style={"lineHeight": "1.8"}),
+
+        html.H4("5. Albumin", style={"marginTop": "20px", "color": "#3c8d55"}),
+        html.Ul([
+            html.Li("Healthy Range: 3.5-5.5 g/dL"),
+            html.Li("Detects your body's liver protein synthesis capacity")], style={"lineHeight": "1.8"}),
+
+        html.Br(),
+        dcc.Link("Back to Dashboard", href="/",
+                 style={"color": "#0b1d51", "textDecoration": "underline", "fontSize": "18px"})])
+
+# Kidney explanation page
+kidney_explanation_page = html.Div(
+    style={"minHeight": "100vh", "backgroundColor": "#e8f9f0", "color": "#0b1d51", "padding": "50px"},
+    children=[
+        html.H2("Kidney Examination", style={"color": "#0b1d51"}),
+        html.P("Kidney function tests evaluate the health and filtering capacity of your kidneys through various indicators:"),
+        html.H4("1. Creatinine", style={"marginTop": "20px", "color": "#3c8d55"}),
+        html.Ul([
+            html.Li("Healthy Range:"),
+            html.Ul([
+                html.Li("Male: 0.7-1.3 mg/dL (or 62-115 μmol/L)"),
+                html.Li("Female: 0.6-1.1 mg/dL (or 53-97 μmol/L)")],
+                style={"lineHeight": "1.8", "marginLeft": "20px"}),
+            html.Li("Reflects kidney's ability to filter waste"),
+            html.Li("Elevation indicates declining kidney function")], style={"lineHeight": "1.8"}),
+
+        html.H4("2. BUN (Blood Urea Nitrogen)", style={"marginTop": "20px", "color": "#3c8d55"}),
+        html.Ul([
+            html.Li("Healthy Range: 7-20 mg/dL (or 2.5-7.1 mmol/L)"),
+            html.Li("Detects kidney's ability to clear waste"),
+            html.Li("Elevation indicates kidney problems or dehydration")], style={"lineHeight": "1.8"}),
+
+        html.H4("3. eGFR (Estimated Glomerular Filtration Rate)", style={"marginTop": "20px", "color": "#3c8d55"}),
+        html.Ul([
+            html.Li("Healthy Range:"),
+            html.Ul([
+                html.Li("≥90 mL/min/1.73m² = Normal"),
+                html.Li("60-89 = Mild decline"),
+                html.Li("30-59 = Moderate decline"),
+                html.Li("15-29 = Severe decline"),
+                html.Li("<15 = Kidney failure")],
+                style={"lineHeight": "1.8", "marginLeft": "20px"}),
+            html.Li("Most important kidney function indicator")], style={"lineHeight": "1.8"}),
+
+        html.H4("4. Uric Acid", style={"marginTop": "20px", "color": "#3c8d55"}),
+        html.Ul([
+            html.Li("Healthy Range:"),
+            html.Ul([
+                html.Li("Male: 3.4-7.0 mg/dL"),
+                html.Li("Female: 2.4-6.0 mg/dL")],
+                style={"lineHeight": "1.8", "marginLeft": "20px"}),
+            html.Li("Elevation may lead to gout or kidney stones")], style={"lineHeight": "1.8"}),
+
+        html.H4("5. BUN/Creatinine Ratio", style={"marginTop": "20px", "color": "#3c8d55"}),
+        html.Ul([
+            html.Li("Healthy Range: 10:1 to 20:1"),
+            html.Li("Helps determine the type of kidney function problem")], style={"lineHeight": "1.8"}),
+
+        html.H4("Urine Test Indicators:", style={"marginTop": "30px", "color": "#3c8d55"}),
+
+        html.H4("6. Protein in Urine", style={"marginTop": "20px", "color": "#3c8d55"}),
+        html.Ul([
+            html.Li("Healthy Range: Negative or <150 mg/day"),
+            html.Li("Positive indicates possible kidney damage")], style={"lineHeight": "1.8"}),
+
+        html.Br(),
+        dcc.Link("Back to Dashboard", href="/",
+                 style={"color": "#0b1d51", "textDecoration": "underline", "fontSize": "18px"})])
+
+# Urine explanation page
+urine_explanation_page = html.Div(
+    style={"minHeight": "100vh", "backgroundColor": "#e8f9f0", "color": "#0b1d51", "padding": "50px"},
+    children=[
+        html.H2("Urine Examination", style={"color": "#0b1d51"}),
+        html.P("Urine tests evaluation through various indicators:"),
+        html.H4("1. Color", style={"marginTop": "20px", "color": "#3c8d55"}),
+        html.Ul([
+            html.Li("Normal: Pale yellow to amber"),
+            html.Li("Abnormal color may indicate dehydration, infection, or other issues")],
+            style={"lineHeight": "1.8"}),
+
+        html.H4("2. Clarity", style={"marginTop": "20px", "color": "#3c8d55"}),
+        html.Ul([
+            html.Li("Normal: Clear and transparent"),
+            html.Li("Cloudiness may indicate infection, crystals, or cells")], style={"lineHeight": "1.8"}),
+
+        html.H4("3. Specific Gravity", style={"marginTop": "20px", "color": "#3c8d55"}),
+        html.Ul([
+            html.Li("Healthy Range: 1.005-1.030"),
+            html.Li("Reflects kidney's ability to concentrate urine"),
+            html.Li("High may indicate dehydration, low may indicate kidney function problems")],
+            style={"lineHeight": "1.8"}),
+
+        html.H4("4. pH Value", style={"marginTop": "20px", "color": "#3c8d55"}),
+        html.Ul([
+            html.Li("Healthy Range: 4.5-8.0 (typically 5.5-7.0)"),
+            html.Li("Reflects urine acidity or alkalinity"),
+            html.Li("Abnormality may be related to infection, diet, or metabolic issues")],
+            style={"lineHeight": "1.8"}),
+
+        html.H4("5. Protein", style={"marginTop": "20px", "color": "#3c8d55"}),
+        html.Ul([
+            html.Li("Normal: Negative or trace (<150 mg/day)"),
+            html.Li("Positive may indicate kidney damage or disease")], style={"lineHeight": "1.8"}),
+
+        html.H4("6. Glucose", style={"marginTop": "20px", "color": "#3c8d55"}),
+        html.Ul([
+            html.Li("Normal: Negative"),
+            html.Li("Positive may indicate diabetes or high blood sugar")], style={"lineHeight": "1.8"}),
+
+        html.H4("7. Bilirubin", style={"marginTop": "20px", "color": "#3c8d55"}),
+        html.Ul([
+            html.Li("Normal: Negative"),
+            html.Li("Positive may indicate liver disease or bile duct obstruction")], style={"lineHeight": "1.8"}),
+
+        html.H4("8. Nitrites", style={"marginTop": "20px", "color": "#3c8d55"}),
+        html.Ul([
+            html.Li("Normal: Negative"),
+            html.Li("Positive typically indicates bacterial urinary tract infection")], style={"lineHeight": "1.8"}),
+
+        html.H4("9. Red Blood Cells (RBC)", style={"marginTop": "20px", "color": "#3c8d55"}),
+        html.Ul([
+            html.Li("Normal: 0-3 cells/high power field"),
+            html.Li("Increase may indicate infection, stones, injury, or kidney disease")],
+            style={"lineHeight": "1.8"}),
+
+        html.H4("10. White Blood Cells (WBC)", style={"marginTop": "20px", "color": "#3c8d55"}),
+        html.Ul([
+            html.Li("Normal: 0-5 cells/high power field"),
+            html.Li("Increase typically indicates urinary tract infection or inflammation")],
+            style={"lineHeight": "1.8"}),
+
+        html.H4("11. Epithelial Cells", style={"marginTop": "20px", "color": "#3c8d55"}),
+        html.Ul([
+            html.Li("Normal: Small amount"),
+            html.Li("Large amount may indicate contamination or urinary tract irritation")],
+            style={"lineHeight": "1.8"}),
+
+        html.Br(),
+        dcc.Link("Back to Dashboard", href="/",
+                 style={"color": "#0b1d51", "textDecoration": "underline", "fontSize": "18px"})])
+
+# 4 different packages page, link to the xlsx file
+package_intro_table = html.Table(
+    style={"width": "100%", "borderCollapse": "collapse", "marginTop": "40px", "textAlign": "center"},
+    children=[
+        html.Tr([
+            html.Td("Health Check Packages", style={"border": "1px solid #0b1d51", "padding": "10px"}),
+            html.Td(dcc.Link("Standard Package", href="/standard-page",
+                             style={"textDecoration": "underline", "color": "#0b1d51"}),
+                    style={"border": "2px solid yellow", "borderRadius": "50%", "padding": "10px"}),
+            html.Td("White-Collar Healthy Package", style={"border": "1px solid #0b1d51", "padding": "10px"}),
+            html.Td("Stomach-Care Package", style={"border": "1px solid #0b1d51", "padding": "10px"}),
+            html.Td("Endocrine Package", style={"border": "1px solid #0b1d51", "padding": "10px"}),]),
+        html.Tr([
+            html.Td("Suitable For", style={"border": "1px solid #0b1d51", "padding": "10px"}),
+            html.Td("For employees who want to continue with the same package for regular check-ups.",
+                    style={"border": "1px solid #0b1d51", "padding": "10px"}),
+            html.Td(
+                "For employees with a history of hypertension, hyperlipidemia, or hyperglycemia, who exercise infrequently and often stay up late.",
+                style={"border": "1px solid #0b1d51", "padding": "10px"}),
+            html.Td(
+                "For employees who frequently have both meals as takeout and often experience stomach symptoms such as acid reflux, bloating, regurgitation, or heartburn.",
+                style={"border": "1px solid #0b1d51", "padding": "10px"}),
+            html.Td(
+                "For employees with a history of thyroid abnormalities, overweight, and irregular eating habits with poor attention to nutritional balance.",
+                style={"border": "1px solid #0b1d51", "padding": "10px"}), ]), ])
+
+table_blocks = [html.H2("Package Details", style={"textAlign": "center", "marginTop": "20px", "color": "#0b1d51"}),
+                package_intro_table]
+
+for sheet in sheet_names:
+    df = dfs[sheet]
+    table_blocks.append(
+        html.Div([
+            html.H2(sheet, style={"textAlign": "center", "marginTop": "20px", "color": "#0b1d51"}),
+            html.Table(
+                style={"width": "80%", "margin": "0 auto 40px auto", "borderCollapse": "collapse"},
+                children=[html.Tr(
+                    [html.Th(col, style={"border": "1px solid #0b1d51", "padding": "8px"}) for col in df.columns])] +
+                         [html.Tr(
+                             [html.Td(df.iloc[j][col], style={"border": "1px solid #0b1d51", "padding": "8px"}) for col
+                              in df.columns])
+                          for j in range(len(df))])]))
+
+table_blocks.append(
+    html.Div(
+        dcc.Link("Back to Dashboard", href="/",
+                 style={"color": "#0b1d51", "textDecoration": "underline", "fontSize": "18px",
+                        "display": "block", "textAlign": "center", "marginTop": "40px"})))
+
+standard_page = html.Div(
+    style={"minHeight": "100vh", "backgroundColor": "#e8f9f0", "color": "#0b1d51", "padding": "50px"},
+    children=table_blocks)
+
+# the dashboard layout
+app.layout = html.Div([
+    dcc.Location(id='url', refresh=False),
+    dcc.Store(id='current-employee', data='Tom M'),
+    html.Div(id='page-content')])
+
+
+# acllbacks
+# Callback 1 update current chosen employee
+@app.callback(
+    Output('current-employee', 'data'),
+    Input('employee-dropdown', 'value'),
+    prevent_initial_call=True)
+
+def update_current_employee(selected_employee):
+    return selected_employee
+
+
+# Callback 2: show page according current URL and current chosen employee
+@app.callback(
+    Output('page-content', 'children'),
+    [Input('url', 'pathname'),
+     Input('current-employee', 'data')])
+
+def display_page(pathname, current_employee):
+    if pathname == "/standard-page":
+        return standard_page
+    elif pathname == "/eye-explanation":
+        return eye_explanation_page
+    elif pathname == "/health-explanation-1":
+        return health_explanation_1_page
+    elif pathname == "/health-explanation-2":
+        return health_explanation_2_page
+    elif pathname == "/liver-explanation":
+        return liver_explanation_page
+    elif pathname == "/kidney-explanation":
+        return kidney_explanation_page
+    elif pathname == "/urine-explanation":
+        return urine_explanation_page
+    else:
+        if current_employee is None:
+            current_employee = 'Tom M'
+        return create_main_page(current_employee)
+
+
+# callbacks for the interactive circles liver
+@app.callback(
+    [Output('liver-gauge', 'figure'),
+     Output('liver-color-indicator', 'style'),
+     Output('liver-color-indicator', 'children')],
+    [Input('liver-slider', 'value'),
+     Input('current-employee', 'data')])
+def update_liver(slider_value, current_employee):
+    if current_employee is None:
+        current_employee = 'Tom M'
+
+    data = EMPLOYEE_DATA[current_employee]
+    score = slider_value if slider_value is not None else data['liver_score']
+
+    # update ring
+    fig = create_interactive_gauge(score, "Liver", "liver")
+
+    # update colour
+    color, text = get_status_color_and_text(score)
+    indicator_style = {
+        "width": "120px", "height": "60px",
+        "backgroundColor": color,
+        "border": "2px solid #0b1d51",
+        "borderRadius": "6px",
+        "display": "flex", "justifyContent": "center", "alignItems": "center", "textAlign": "center",
+        "fontSize": "10px",
+        "fontWeight": "bold",
+        "color": "#0b1d51",
+        "padding": "5px"}
+
+    # return them except the score inside the box, which is the employee's actual health score
+    return fig, indicator_style, text
+
+
+# callbacks for the interactive ring kidney
+@app.callback(
+    [Output('kidney-gauge', 'figure'),
+     Output('kidney-color-indicator', 'style'),
+     Output('kidney-color-indicator', 'children')],
+    [Input('kidney-slider', 'value'),
+     Input('current-employee', 'data')])
+def update_kidney(slider_value, current_employee):
+    if current_employee is None:
+        current_employee = 'Tom M'
+
+    data = EMPLOYEE_DATA[current_employee]
+    score = slider_value if slider_value is not None else data['kidney_score']
+
+    fig = create_interactive_gauge(score, "Kidney", "kidney")
+
+    color, text = get_status_color_and_text(score)
+    indicator_style = {
+        "width": "120px", "height": "60px",
+        "backgroundColor": color,
+        "border": "2px solid #0b1d51",
+        "borderRadius": "6px",
+        "display": "flex", "justifyContent": "center", "alignItems": "center", "textAlign": "center",
+        "fontSize": "10px",
+        "fontWeight": "bold",
+        "color": "#0b1d51",
+        "padding": "5px"}
+
+    return fig, indicator_style, text
+
+
+# callbacks for the interactive ring urine
+@app.callback(
+    [Output('urine-gauge', 'figure'),
+     Output('urine-color-indicator', 'style'),
+     Output('urine-color-indicator', 'children')],
+    [Input('urine-slider', 'value'),
+     Input('current-employee', 'data')])
+def update_urine(slider_value, current_employee):
+    if current_employee is None:
+        current_employee = 'Tom M'
+
+    data = EMPLOYEE_DATA[current_employee]
+    score = slider_value if slider_value is not None else data['urine_score']
+
+    fig = create_interactive_gauge(score, "Urine", "urine")
+
+    color, text = get_status_color_and_text(score)
+    indicator_style = {
+        "width": "120px", "height": "60px",
+        "backgroundColor": color,
+        "border": "2px solid #0b1d51",
+        "borderRadius": "6px",
+        "display": "flex",
+        "justifyContent": "center", "alignItems": "center", "textAlign": "center",
+        "fontSize": "10px",
+        "fontWeight": "bold",
+        "color": "#0b1d51",
+        "padding": "5px"}
+
+    return fig, indicator_style, text
+
+
+# run the dashboard
+if __name__ == "__main__":
+    app.run(debug=True)
+
+# code reference here, other reference please check file QBUS5010_DASHBOARD_GROUP_11_Items.xlsx
+# https://plotly.com/python/bar-charts/
+# https://plotly.com/python/gauge-charts/
+# https://dash.plotly.com/dash-html-components/span
+# https://dash.plotly.com/dash-html-components/tr
+# https://dash.plotly.com/dash-html-components/p
+# https://www.w3schools.com/tags/tag_ul.asp
+# https://dash.plotly.com/dash-html-components/td
